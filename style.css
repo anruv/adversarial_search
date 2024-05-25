@@ -1,0 +1,21 @@
+body {
+  display: flex;
+  overflow: hidden; /* Prevent the body from scrolling */
+}
+
+#game-board {
+  display: inline-block;
+  margin-right: 50px;
+}
+
+#game-tree-container {
+  display: inline-block;
+  overflow: auto; /* Allow internal scrolling */
+  flex-grow: 1; /* Allow it to grow and take the remaining space */
+  height: 100vh; /* Set to full viewport height */
+}
+
+#game-tree {
+  width: 2000px; /* Adjust width as needed */
+  height: 2000px; /* Adjust height as needed */
+}
