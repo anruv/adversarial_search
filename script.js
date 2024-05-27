@@ -107,8 +107,8 @@ const makeMove = (x, y, player) => {
   }
 };
 
-// Minimax algorithm to find the best move for AI
-const minimax = (board, depth, isMaximizing) => {
+// Minimax algorithm with alpha-beta pruning to find the best move for AI
+const minimaxAlphaBeta = (board, depth, isMaximizing, alpha, beta) => {
   if (checkWin(board, 'X')) return -10 + depth;
   if (checkWin(board, 'O')) return 10 - depth;
   if (isDraw(board)) return 0;
@@ -119,11 +119,13 @@ const minimax = (board, depth, isMaximizing) => {
       for (let j = 0; j < boardSize; j++) {
         if (board[i][j] === '') {
           board[i][j] = 'O';
-          let score = minimax(board, depth + 1, false);
+          let score = minimaxAlphaBeta(board, depth + 1, false, alpha, beta);
           board[i][j] = '';
           if (score > bestScore) {
             bestScore = score;
           }
+          alpha = Math.max(alpha, score);
+          if (beta <= alpha) break;
           renderScore(i, j, score); // Visualize score
         }
       }
@@ -135,11 +137,13 @@ const minimax = (board, depth, isMaximizing) => {
       for (let j = 0; j < boardSize; j++) {
         if (board[i][j] === '') {
           board[i][j] = 'X';
-          let score = minimax(board, depth + 1, true);
+          let score = minimaxAlphaBeta(board, depth + 1, true, alpha, beta);
           board[i][j] = '';
           if (score < bestScore) {
             bestScore = score;
           }
+          beta = Math.min(beta, score);
+          if (beta <= alpha) break;
           renderScore(i, j, score); // Visualize score
         }
       }
@@ -148,13 +152,15 @@ const minimax = (board, depth, isMaximizing) => {
   }
 };
 
-// Helper function to create tree data
-const createTreeData = (board, depth, isMaximizing) => {
+// Helper function to create tree data with alpha-beta pruning visualization
+const createTreeDataAlphaBeta = (board, depth, isMaximizing, alpha, beta) => {
   const node = {
     id: ++i,
     board: JSON.parse(JSON.stringify(board)),
     move: null,
     player: isMaximizing ? 'O' : 'X',
+    alpha: alpha,
+    beta: beta,
     children: []
   };
 
@@ -169,14 +175,25 @@ const createTreeData = (board, depth, isMaximizing) => {
       for (let j = 0; j < boardSize; j++) {
         if (board[i][j] === '') {
           board[i][j] = node.player;
-          const child = createTreeData(board, depth + 1, !isMaximizing);
+          const child = createTreeDataAlphaBeta(board, depth + 1, !isMaximizing, alpha, beta);
           child.move = `${i},${j}`;
           node.children.push(child);
           board[i][j] = '';
+          if (isMaximizing) {
+            alpha = Math.max(alpha, child.score);
+          } else {
+            beta = Math.min(beta, child.score);
+          }
+          if (beta <= alpha) {
+            node.pruned = true;
+            break;
+          }
         }
       }
     }
   }
+  node.alpha = alpha;
+  node.beta = beta;
   return node;
 };
 
@@ -223,7 +240,7 @@ const updateTree = source => {
     .attr("y1", d => d.source.y)
     .attr("x2", d => d.target.x)
     .attr("y2", d => d.target.y)
-    .attr("stroke", "black");
+    .attr("stroke", d => d.target.data.pruned ? "red" : "black");
 
   link.transition()
     .attr("x1", d => d.source.x)
@@ -271,7 +288,7 @@ const updateTree = source => {
 
 // Find the best move for AI
 const findBestMove = () => {
-  const treeData = createTreeData(board, 0, true);
+  const treeData = createTreeDataAlphaBeta(board, 0, true, -Infinity, Infinity);
   drawTree(treeData);
 
   let bestScore = -Infinity;
@@ -280,7 +297,7 @@ const findBestMove = () => {
     for (let j = 0; j < boardSize; j++) {
       if (board[i][j] === '') {
         board[i][j] = 'O';
-        let score = minimax(board, 0, false);
+        let score = minimaxAlphaBeta(board, 0, false, -Infinity, Infinity);
         board[i][j] = '';
         if (score > bestScore) {
           bestScore = score;
@@ -317,3 +334,9 @@ adjustGameTreeContainerHeight();
 
 // Adjust the game tree container height on window resize
 window.addEventListener('resize', adjustGameTreeContainerHeight);
+
+// Add event listener for prune button
+document.getElementById('prune-button').addEventListener('click', () => {
+  const treeData = createTreeDataAlphaBeta(board, 0, true, -Infinity, Infinity);
+  drawTree(treeData);
+});
